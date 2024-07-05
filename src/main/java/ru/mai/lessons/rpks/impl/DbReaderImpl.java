@@ -38,7 +38,7 @@ public class DbReaderImpl implements DbReader {
                         .filterValue(result.get(index).getValue("filter_value", String.class))
                         .build();
             }
-            log.info("Rules from " + dataSource.getJdbcUrl() + " were read successfully");
+            log.info("Rules from {} were read successfully", dataSource.getJdbcUrl());
             return rules;
         } catch (Exception e) {
             log.error("Error reading rules from database", e);

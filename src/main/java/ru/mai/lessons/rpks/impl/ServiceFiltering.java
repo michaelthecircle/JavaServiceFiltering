@@ -8,12 +8,7 @@ import ru.mai.lessons.rpks.*;
 public class ServiceFiltering implements Service {
     @Override
     public void start(Config config) {
-        RuleProcessor ruleProcessor = new RuleProcessorImpl();
-        KafkaWriter kafkaWriter = new KafkaWriterImpl(config);
-        try (KafkaReader kafkaReader = new KafkaReaderImpl(config, kafkaWriter, ruleProcessor)) {
-            kafkaReader.processing();
-        } catch (Exception e) {
-            log.error("Error while filtering messages", e);
-        }
+        KafkaReader kafkaReader = new KafkaReaderImpl(config);
+        kafkaReader.processing();
     }
 }

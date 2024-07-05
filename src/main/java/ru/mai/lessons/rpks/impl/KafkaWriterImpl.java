@@ -39,20 +39,11 @@ public class KafkaWriterImpl implements KafkaWriter {
         log.debug("Sending message: {}", message.getValue());
         kafkaProducer.send(new ProducerRecord<>(topic, message.getValue()), (metadata, exception) -> {
             if (exception == null) {
-                log.debug("Message sent successfully to topic {} partition {} with offset {}",
+                log.info("Message sent successfully to topic {} partition {} with offset {}",
                         metadata.topic(), metadata.partition(), metadata.offset());
             } else {
                 log.error("Error sending message to topic {}: {}", metadata.topic(), exception.getMessage(), exception);
             }
         });
-    }
-    @Override
-    public void close() {
-        try {
-            kafkaProducer.close();
-            log.info("Kafka Producer closed successfully");
-        } catch (Exception e) {
-            log.error("Error closing Kafka Producer: {}", e.getMessage(), e);
-        }
     }
 }

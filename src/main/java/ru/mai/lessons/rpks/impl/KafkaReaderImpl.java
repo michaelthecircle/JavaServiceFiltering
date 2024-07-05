@@ -13,6 +13,7 @@ import ru.mai.lessons.rpks.RuleProcessor;
 import ru.mai.lessons.rpks.model.Message;
 import ru.mai.lessons.rpks.model.Rule;
 
+import java.util.concurrent.*;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
@@ -24,22 +25,22 @@ public class KafkaReaderImpl implements KafkaReader {
     private final KafkaWriter kafkaWriter;
     private final RuleProcessor ruleProcessor;
     private final KafkaConsumer<String, String> kafkaConsumer;
-    private volatile boolean isRunning;
+    private final DbReaderImpl dbReader;
 
     @Setter
     private Rule[] rules;
 
-    public KafkaReaderImpl(Config config, KafkaWriter kafkaWriter, RuleProcessor ruleProcessor) {
+    public KafkaReaderImpl(Config config) {
         this.config = config;
-        this.kafkaWriter = kafkaWriter;
-        this.ruleProcessor = ruleProcessor;
+        this.dbReader = new DbReaderImpl(config);
         this.kafkaConsumer = new KafkaConsumer<>(
                 kafkaConsumerConfig(),
                 new StringDeserializer(),
                 new StringDeserializer()
         );
+        this.kafkaWriter = new KafkaWriterImpl(config);
+        this.ruleProcessor = new RuleProcessorImpl();
         this.kafkaConsumer.subscribe(Collections.singletonList(config.getString("kafka.consumer.topic")));
-        this.isRunning = true;
         log.info("Created Kafka Consumer");
     }
     private Map<String, Object> kafkaConsumerConfig() {
@@ -51,47 +52,35 @@ public class KafkaReaderImpl implements KafkaReader {
 
     @Override
     public void processing() {
+        ScheduledExecutorService ruleUpdater = Executors.newSingleThreadScheduledExecutor();
+        ruleUpdater.scheduleAtFixedRate(this::updateRules,
+                0, config.getLong("application.updateIntervalSec") * 1000L, TimeUnit.MILLISECONDS);
+        boolean isRun = true;
         try {
-            while (isRunning) {
-                ConsumerRecords<String, String> consumerRecords = kafkaConsumer.poll(Duration.ofMillis(1000));
-                if (!consumerRecords.isEmpty()) {
-                    for (ConsumerRecord<String, String> consumerRecord : consumerRecords) {
-                        log.debug("Received record: {}", consumerRecord.value());
-                        processMessage(consumerRecord.value());
-                        log.debug("Message {} processed", consumerRecord.value());
+            while (isRun) {
+                ConsumerRecords<String, String> records = kafkaConsumer.poll(Duration.ofMillis(1000));
+                for (ConsumerRecord<String, String> consumerRecord : records) {
+                    String recordMessage = consumerRecord.value();
+                    Message processedMessage = ruleProcessor.processing(new Message(recordMessage, false), rules);
+                    if (processedMessage.isFilterState()){
+                        kafkaWriter.processing(processedMessage);
                     }
                 }
             }
         } catch (Exception e) {
-            log.error("Error during message processing", e);
+            log.error("error", e);
         } finally {
-            closeConsumer();
+            ruleUpdater.shutdown();
+            try {
+                if (!ruleUpdater.isTerminated()) {
+                    ruleUpdater.shutdownNow();
+                }
+            } catch (Exception e) {
+                log.error("error", e);
+            }
         }
     }
-    private void processMessage(String value) {
-        Message message = ruleProcessor.processing(
-                Message.builder()
-                        .value(value)
-                        .filterState(false)
-                        .build(),
-                rules
-        );
-        if (message.isFilterState()) {
-            kafkaWriter.processing(message);
-        }
-    }
-    private void closeConsumer() {
-        try {
-            kafkaConsumer.close();
-            log.info("Kafka consumer closed");
-        } catch (Exception e) {
-            log.error("Error closing Kafka consumer", e);
-        }
-    }
-    @Override
-    public void close() {
-        log.info("Shutdown Kafka Reader initiated");
-        isRunning = false;
-        kafkaConsumer.wakeup();
+    private void updateRules() {
+        rules = dbReader.readRulesFromDB();
     }
 }

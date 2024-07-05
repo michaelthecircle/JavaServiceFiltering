@@ -24,8 +24,6 @@ X
 :
 
 .gitignore,a/5/a5cc2925ca8258af241be7e5b0381edf30266302
-L
-.github/workflows/gradle.yml,c/3/c36c878e4a824e41b1b476ece36b9a80ca94ffec
 c
 3src/main/java/ru/mai/lessons/rpks/ConfigReader.java,a/6/a63d6f135ac04befd116d8e1f31aa21b752441da
 o
@@ -52,3 +50,7 @@ B
 docker-compose.yml,3/5/35b8c13cf2eb2a194eada000eb310d65aed53b2a
 S
 #src/main/resources/application.conf,3/5/3583a03abc61f9a983b67fd3810cb1f4192490b6
+]
+-.idea/sonarlint/securityhotspotstore/index.pb,8/8/88a9255124c95bdc913197c120a8d560edc59c8e
+S
+#.idea/sonarlint/issuestore/index.pb,9/f/9fe84ebb15faf917b7def6236dba604453cc61e0
